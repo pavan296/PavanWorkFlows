@@ -1,0 +1,22 @@
+name: Clean Up Work Directory
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup-work-directory:
+    runs-on: [self-hosted, linux, x64, build]
+    steps:
+    - name: Check Disk Space Before Cleanup
+      run: df -h
+    - name: Check Disk Usage of _work Directory Before Cleanup
+      run: du -sh /LINUX-RUNNER-01/_work/* | sort -rh
+    - name: Clean Up _work Directory
+      run: |
+        echo "Cleaning up /LINUX-RUNNER-01/_work directory"
+        rm -rf /LINUX-RUNNER-01/_work/*
+        echo "Cleanup complete"
+    - name: Check Disk Space After Cleanup
+      run: df -h
+    - name: Check Disk Usage of _work Directory After Cleanup
+      run: du -sh /LINUX-RUNNER-01/_work/* | sort -rh

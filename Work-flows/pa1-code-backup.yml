@@ -1,0 +1,11 @@
+name: NACH Code Backup
+
+on:
+  schedule:
+    - cron: "30 2 * * *" # run every day at 2:30 AM UTC (staggered to avoid midnight runner contention)
+  workflow_dispatch:
+
+jobs:
+  NACH-Backup:
+    uses: pavan296/PavanWorkFlows/Personal-flows/x-pa1-code-backup.yml@master
+    secrets: inherit

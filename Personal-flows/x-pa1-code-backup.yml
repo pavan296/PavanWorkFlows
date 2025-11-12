@@ -1,0 +1,51 @@
+name: x-PA1-Code-Backup
+
+on:
+  workflow_call:
+    inputs:
+      checkout_fetch_depth:
+        description: 'The fetch-depth parameter passed to the checkout action'
+        required: false
+        type: number
+        default: 0
+
+jobs:
+  Backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ inputs.checkout_fetch_depth }}
+
+      - name: Zip and Encrypt repo
+        id: zip-encrypt
+        run: |
+          # Generate a timestamp
+          TIMESTAMP=$(date +'%Y%m%d%H%M%S')
+          # Extract the cleaned repo name from GITHUB_REPOSITORY
+          REPO_NAME=$(basename $GITHUB_REPOSITORY | tr -d '[:space:]')
+          # Construct the file names
+          ZIP_FILE="${REPO_NAME}_code_$TIMESTAMP.zip"
+          ENCRYPTED_FILE="$ZIP_FILE.gpg"
+          # Zip the code with the timestamp and cleaned repo name
+          zip -r "$ZIP_FILE" .
+          # Encrypt the ZIP file using GnuPG
+          gpg --batch --pinentry-mode loopback --symmetric --cipher-algo AES256 --output "$ENCRYPTED_FILE" --passphrase "${{ secrets.NACH_CODE_BACKUP_GPG_PASSPHRASE }}" "$ZIP_FILE"
+          # Set the encrypted file name as an output
+          echo "ENCRYPTED_FILE=$ENCRYPTED_FILE" >> $GITHUB_OUTPUT
+
+      - name: Upload ZIP to Azure storage
+        uses: azure/CLI@v2
+        with:
+          azcliversion: 2.30.0
+          inlineScript: |
+            # Get secrets from GitHub secrets
+            #STORAGE_ACCOUNT_NAME="${{ secrets.NACH_CODE_BACKUP_STORAGE_ACCOUNT_NAME }}"
+            #CONTAINER_NAME="${{ secrets.NACH_CODE_BACKUP_CONTAINER_NAME }}"
+            #SAS_TOKEN="${{ secrets.NACH_CODE_BACKUP_SAS_TOKEN }}"
+            # Get the encrypted file name from the previous step's output
+            #ENCRYPTED_FILE="${{ steps.zip-encrypt.outputs.ENCRYPTED_FILE }}"
+            # Upload the encrypted ZIP file to Azure Blob Storage using the SAS token
+            az storage blob upload --account-name $STORAGE_ACCOUNT_NAME --container-name $CONTAINER_NAME --file $ENCRYPTED_FILE  --name "$GITHUB_REPOSITORY/$ENCRYPTED_FILE" --sas-token $SAS_TOKEN

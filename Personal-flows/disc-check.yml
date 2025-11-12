@@ -1,0 +1,20 @@
+name: Check Disk Space
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  check-disk-space:
+    runs-on: [self-hosted, linux, x64, build]
+    steps:
+    - name: Check Disk Space
+      run: df -h
+    - name: Check Disk Usage by Directory
+      run: du -sh /* | sort -rh
+    - name: Check Disk Usage of LINUX-RUNNER-01
+      run: du -sh /LINUX-RUNNER-01/* | sort -rh
+    - name: Check Disk Usage of LINUX-RUNNER-02
+      run: du -sh /LINUX-RUNNER-02/* | sort -rh
