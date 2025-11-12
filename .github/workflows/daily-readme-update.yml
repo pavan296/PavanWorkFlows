@@ -1,71 +1,93 @@
+# FILE 1: Reusable Workflow
+# Save this in your reusable workflows repo as: .github/workflows/daily-readme-update.yml
+
 name: Daily README Update (Reusable)
 
 on:
   workflow_call:
     inputs:
       timezone:
-        description: 'Timezone for date display (e.g., Asia/Dubai)'
+        description: "Timezone for date display (e.g., Asia/Dubai)"
         required: false
         type: string
-        default: 'UTC'
+        default: "UTC"
     secrets:
       token:
-        description: 'GitHub token for committing'
+        description: "GitHub token for committing"
         required: false
 
 jobs:
   update-readme:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.token || secrets.GITHUB_TOKEN }}
-      
+
       - name: Update README
         env:
           TZ: ${{ inputs.timezone }}
         run: |
-          # Fetch a random quote
-          QUOTE_DATA=$(curl -s https://api.quotable.io/random)
-          QUOTE=$(echo $QUOTE_DATA | grep -o '"content":"[^"]*"' | cut -d'"' -f4)
-          AUTHOR=$(echo $QUOTE_DATA | grep -o '"author":"[^"]*"' | cut -d'"' -f4)
-          
-          # Fallback if API fails
-          if [ -z "$QUOTE" ]; then
-            QUOTE="The only way to do great work is to love what you do."
-            AUTHOR="Steve Jobs"
+          # Array of quotes (fallback)
+          declare -a QUOTES=(
+            "The only way to do great work is to love what you do.|Steve Jobs"
+            "Innovation distinguishes between a leader and a follower.|Steve Jobs"
+            "Life is what happens when you're busy making other plans.|John Lennon"
+            "The future belongs to those who believe in the beauty of their dreams.|Eleanor Roosevelt"
+            "It is during our darkest moments that we must focus to see the light.|Aristotle"
+            "The only impossible journey is the one you never begin.|Tony Robbins"
+            "Success is not final, failure is not fatal: it is the courage to continue that counts.|Winston Churchill"
+            "Believe you can and you're halfway there.|Theodore Roosevelt"
+            "The best time to plant a tree was 20 years ago. The second best time is now.|Chinese Proverb"
+            "Your time is limited, don't waste it living someone else's life.|Steve Jobs"
+          )
+
+          # Try to fetch from API first
+          QUOTE_DATA=$(curl -s -k https://zenquotes.io/api/random 2>/dev/null || echo "")
+
+          if [ ! -z "$QUOTE_DATA" ] && echo "$QUOTE_DATA" | grep -q "q"; then
+            QUOTE=$(echo $QUOTE_DATA | grep -o '"q":"[^"]*"' | cut -d'"' -f4)
+            AUTHOR=$(echo $QUOTE_DATA | grep -o '"a":"[^"]*"' | cut -d'"' -f4)
           fi
-          
+
+          # Use fallback array if API fails
+          if [ -z "$QUOTE" ]; then
+            RANDOM_INDEX=$((RANDOM % ${#QUOTES[@]}))
+            SELECTED="${QUOTES[$RANDOM_INDEX]}"
+            QUOTE=$(echo $SELECTED | cut -d'|' -f1)
+            AUTHOR=$(echo $SELECTED | cut -d'|' -f2)
+          fi
+
           # Get current date and time
           CURRENT_DATE=$(date '+%B %d, %Y')
           CURRENT_TIME=$(date '+%I:%M %p')
-          
+
           # Create README content
           cat > README.md << EOF
           # Daily Updates Repository
-          
+
           ## 📅 Last Updated: ${CURRENT_DATE}
-          
+
           ## 💭 Quote of the Day
-          
+
           > "${QUOTE}"
           > 
           > — **${AUTHOR}**
-          
+
           ---
-          
+
           ### About This Repository
-          
+
           This repository is automatically updated daily with inspirational quotes and timestamps.
-          
+
           **Auto-update Status:** ✅ Active  
           **Last Run:** ${CURRENT_DATE} at ${CURRENT_TIME}
           EOF
-          
+
           echo "README updated successfully!"
-      
+
       - name: Commit and push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
